@@ -7,7 +7,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-**Promptrium** is a modern, offline-first AI prompt management application that helps you organize, search, and reuse your AI prompts efficiently. Built with Next.js and TypeScript, it provides a beautiful, responsive interface for managing your prompt library.
+**Promptrium** is a modern, offline-first AI prompt management application that helps you organize, search, and reuse your AI prompts efficiently. Built with Next.js 16, React 19, and TypeScript, it provides a beautiful, responsive interface for managing your prompt library.
 
 ## ✨ Features
 
@@ -53,6 +53,7 @@
 
 - **TypeScript**: Full type safety throughout the application
 - **Modern React**: Built with React 19 and modern hooks
+- **Next.js 16**: App Router with Turbopack as default dev bundler
 - **TailwindCSS v4**: CSS-first configuration with native CSS variables and animations
 - **Component Architecture**: Well-structured, reusable components
 - **Performance Optimized**: Memoized components and efficient state management
@@ -64,7 +65,7 @@
 ### Prerequisites
 
 - Node.js 18+ (recommended: latest LTS)
-- pnpm (recommended) or npm/yarn
+- [pnpm](https://pnpm.io/) (recommended; project uses `packageManager: "pnpm@10.18.1"`) or npm/yarn
 
 ### Installation
 
@@ -79,42 +80,44 @@
 
    ```bash
    pnpm install
-   # or
-   npm install
    ```
+
+   Or with npm: `npm install`
 
 3. **Start the development server**
 
    ```bash
    pnpm dev
-   # or
-   npm run dev
    ```
 
-4. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+   This runs Next.js 16 with Turbopack. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+   With npm: `npm run dev`
 
 ### Available Scripts
 
+All commands below use **pnpm**; replace with `npm run <script>` if you use npm.
+
 ```bash
 # Development
-pnpm dev          # Start development server
-pnpm dev:turbo    # Start development server with Turbopack
+pnpm dev          # Start dev server (Next.js 16 + Turbopack)
+pnpm dev:turbo    # Same as dev (Turbopack is default in Next.js 16)
 
 # Build & Deploy
 pnpm build        # Build for production
 pnpm start        # Start production server
 
-# Maintenance
+# Code quality
 pnpm lint         # Run ESLint
 pnpm format       # Format code with Prettier
-pnpm clean        # Clean build artifacts
+pnpm format:check # Check formatting without writing
+pnpm clean        # Remove .next and node_modules cache
 
-# Release Management
+# Release
 pnpm release             # Create a new release
-pnpm release:patch       # Create a patch release
-pnpm release:minor       # Create a minor release
-pnpm release:major       # Create a major release
+pnpm release:patch       # Patch release (0.0.x)
+pnpm release:minor       # Minor release (0.x.0)
+pnpm release:major       # Major release (x.0.0)
 pnpm changelog           # Extract changelog
 ```
 
@@ -151,7 +154,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with [Next.js](https://nextjs.org/)
+- Built with [Next.js 16](https://nextjs.org/)
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
 - Icons from [Lucide](https://lucide.dev/)
 - Fonts from [Vercel](https://vercel.com/font)
