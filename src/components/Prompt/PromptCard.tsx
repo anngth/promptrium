@@ -107,4 +107,4 @@ const PromptCard: React.FC<PromptCardProps> = ({
 
 PromptCard.displayName = "PromptCard";
 
-export default PromptCard;
+export default React.memo(PromptCard);

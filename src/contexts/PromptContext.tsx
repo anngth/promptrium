@@ -7,10 +7,12 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Prompt, Settings, PromptContextType, SortKey } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { usePromptDataOperations } from "@/hooks/usePromptDataOperations";
 import { PromptDataProvider, usePromptData } from "./PromptDataContext";
+import { sanitizeSettings } from "@/utils/helpers";
 
 import {
   STORAGE_KEYS,
@@ -40,9 +42,27 @@ const defaultSettings: Settings = {
 const InternalPromptProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [settings, setSettings] = useLocalStorage<Settings>(
+  const [storedSettings, setStoredSettings] = useLocalStorage<Settings>(
     STORAGE_KEYS.SETTINGS,
     defaultSettings
+  );
+  const settings = useMemo(
+    () => sanitizeSettings(storedSettings),
+    [storedSettings]
+  );
+  const setSettings: Dispatch<SetStateAction<Settings>> = useCallback(
+    (value) => {
+      // Intentionally not caught here — callers (exportData, importData,
+      // clearAllData) are responsible for handling storage errors and showing
+      // the appropriate toast. Swallowing the error here would prevent callers
+      // from knowing the write failed.
+      setStoredSettings((prev) => {
+        const current = sanitizeSettings(prev);
+        const next = value instanceof Function ? value(current) : value;
+        return sanitizeSettings(next);
+      });
+    },
+    [setStoredSettings]
   );
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
 
@@ -64,6 +84,7 @@ const InternalPromptProvider: React.FC<{ children: React.ReactNode }> = ({
   // Get prompt data operations
   const {
     prompts,
+    mounted,
     addPrompt,
     updatePrompt,
     deletePrompt,
@@ -77,24 +98,27 @@ const InternalPromptProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!Array.isArray(prompts)) return [];
 
     let filtered = [...prompts];
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(
-        (prompt) =>
-          prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          prompt.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          prompt.description
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
+    if (normalizedSearchQuery) {
+      filtered = filtered.filter((prompt) => {
+        return (
+          prompt.title.toLowerCase().includes(normalizedSearchQuery) ||
+          prompt.content.toLowerCase().includes(normalizedSearchQuery) ||
+          prompt.description.toLowerCase().includes(normalizedSearchQuery) ||
           prompt.tags.some((tag) =>
-            tag.toLowerCase().includes(searchQuery.toLowerCase())
+            tag.toLowerCase().includes(normalizedSearchQuery)
           )
-      );
+        );
+      });
     }
 
     if (selectedTags.length > 0) {
-      filtered = filtered.filter((prompt) =>
-        selectedTags.every((tag) => prompt.tags.includes(tag))
+      const requiredTags = Array.from(new Set(selectedTags));
+      filtered = filtered.filter(
+        (prompt) =>
+          prompt.tags.length >= requiredTags.length &&
+          requiredTags.every((tag) => prompt.tags.includes(tag))
       );
     }
 
@@ -174,6 +198,7 @@ const InternalPromptProvider: React.FC<{ children: React.ReactNode }> = ({
       filteredPrompts,
       selectedPrompt,
       isLoading,
+      mounted,
       // Filter state
       searchQuery,
       selectedTags,
@@ -200,6 +225,7 @@ const InternalPromptProvider: React.FC<{ children: React.ReactNode }> = ({
       filteredPrompts,
       selectedPrompt,
       isLoading,
+      mounted,
       searchQuery,
       selectedTags,
       sortBy,

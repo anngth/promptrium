@@ -1,11 +1,16 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { usePageLogic } from "@/hooks/usePageLogic";
 import { PageHeader } from "@/components/Layout/PageHeader";
 import { PageMainContent } from "@/components/Layout/PageMainContent";
-import { PageModals } from "@/components/Layout/PageModals";
 import { FilterSidebar } from "@/components/Search/FilterSidebar";
+
+const PageModals = dynamic(
+  () => import("@/components/Layout/PageModals").then((m) => m.PageModals),
+  { ssr: false }
+);
 
 export default function Home() {
   const {
@@ -37,6 +42,10 @@ export default function Home() {
     handlePromptCopy,
     handlePromptFavorite,
     exportData,
+    importPreview,
+    isImporting,
+    handleConfirmImport,
+    handleExportBackup,
   } = usePageLogic();
 
   return (
@@ -77,9 +86,14 @@ export default function Home() {
       <PageModals
         modalType={modalType}
         selectedPrompt={selectedPrompt}
+        importPreview={importPreview}
+        isImporting={isImporting}
+        currentPromptCount={prompts.length}
         onCloseModal={closeModal}
         onSubmitPrompt={handlePromptSubmit}
         onDeletePrompt={handlePromptDelete}
+        onConfirmImport={handleConfirmImport}
+        onExportBackup={handleExportBackup}
       />
     </div>
   );

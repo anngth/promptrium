@@ -31,7 +31,10 @@ const ERROR_MESSAGES = {
 const ErrorDisplay: React.FC<{
   error?: Error;
   onReset: () => void;
-}> = ({ error, onReset }) => (
+}> = ({ error, onReset }) => {
+  const showErrorDetails = process.env.NODE_ENV !== "production";
+
+  return (
   <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-6 text-center">
       {/* Error Icon */}
@@ -47,8 +50,8 @@ const ErrorDisplay: React.FC<{
       {/* Error Description */}
       <p className="text-muted-foreground mb-6">{ERROR_MESSAGES.description}</p>
 
-      {/* Error Details */}
-      {error && (
+      {/* Error Details — hidden in production */}
+      {showErrorDetails && error && (
         <details className="mb-4 text-left">
           <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
             {ERROR_MESSAGES.errorDetails}
@@ -72,7 +75,8 @@ const ErrorDisplay: React.FC<{
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // Main Error Boundary Component
 export class ErrorBoundary extends Component<

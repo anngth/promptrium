@@ -12,22 +12,33 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Prompt, ModalType, PromptFormData } from "@/types";
-import { Trash2 } from "lucide-react";
+import { Trash2, Upload } from "lucide-react";
+import type { ImportPreview } from "@/hooks/usePageLogic";
 
 interface PageModalsProps {
   modalType: ModalType;
   selectedPrompt: Prompt | null;
+  importPreview: ImportPreview | null;
+  isImporting: boolean;
+  currentPromptCount: number;
   onCloseModal: () => void;
   onSubmitPrompt: (formData: PromptFormData) => void;
   onDeletePrompt: () => void;
+  onConfirmImport: () => void;
+  onExportBackup: () => void;
 }
 
 export const PageModals: React.FC<PageModalsProps> = ({
   modalType,
   selectedPrompt,
+  importPreview,
+  isImporting,
+  currentPromptCount,
   onCloseModal,
   onSubmitPrompt,
   onDeletePrompt,
+  onConfirmImport,
+  onExportBackup,
 }) => {
   const formRef = useRef<PromptFormRef>(null);
   const [formState, setFormState] = useState<{
@@ -94,6 +105,7 @@ export const PageModals: React.FC<PageModalsProps> = ({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             <PromptForm
+              key={selectedPrompt?.id ?? "create"}
               ref={formRef}
               prompt={selectedPrompt || undefined}
               onSubmit={onSubmitPrompt}
@@ -133,6 +145,60 @@ export const PageModals: React.FC<PageModalsProps> = ({
             </Button>
             <Button variant="destructive" onClick={onDeletePrompt}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Import Confirmation Dialog */}
+      <Dialog
+        open={modalType === "import"}
+        onOpenChange={(open) => {
+          if (!open) onCloseModal();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg md:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Import Data</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-10 h-10 bg-blue-light rounded-full flex items-center justify-center">
+              <Upload className="w-5 h-5 text-blue-foreground" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-card-foreground">
+                Replace existing data?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Importing &ldquo;{importPreview?.fileName}&rdquo; will replace
+                your {currentPromptCount} current prompt
+                {currentPromptCount === 1 ? "" : "s"} with{" "}
+                {importPreview?.promptCount ?? 0} prompt
+                {(importPreview?.promptCount ?? 0) === 1 ? "" : "s"}. This
+                action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={onExportBackup}
+              disabled={isImporting}
+              className="sm:mr-auto"
+            >
+              Export backup first
+            </Button>
+            <Button variant="outline" onClick={onCloseModal} disabled={isImporting}>
+              Cancel
+            </Button>
+            <Button onClick={onConfirmImport} disabled={isImporting}>
+              {isImporting ? (
+                <div className="flex items-center">
+                  <Loading size="sm" variant="spinner" />
+                  <span className="ml-1">Importing...</span>
+                </div>
+              ) : (
+                "Import"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

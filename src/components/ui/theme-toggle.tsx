@@ -6,13 +6,17 @@ import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
+const subscribe = () => () => {};
+const getMountedSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export function ThemeToggle() {
   const { resolvedTheme: theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = React.useSyncExternalStore(
+    subscribe,
+    getMountedSnapshot,
+    getServerSnapshot
+  );
 
   if (!mounted) {
     return null;

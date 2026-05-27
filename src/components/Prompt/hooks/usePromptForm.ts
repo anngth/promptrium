@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { PromptFormData } from "@/types";
 import { VALIDATION, ERROR_MESSAGES } from "@/constants";
 import { validatePrompt } from "@/utils/helpers";
@@ -13,15 +13,6 @@ export const usePromptForm = (initialData?: PromptFormData) => {
     }
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  // Sync form state when initialData changes (for edit flow)
-  useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-      // Clear any existing errors when switching to new data
-      setErrors({});
-    }
-  }, [initialData]);
 
   const validateField = useCallback(
     (field: keyof PromptFormData, value: string | string[]) => {

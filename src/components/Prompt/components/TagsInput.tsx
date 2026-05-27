@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useId, useRef, useEffect } from "react";
+import React, { useState, useCallback, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Plus, AlertCircle } from "lucide-react";
 import { VALIDATION, ERROR_MESSAGES } from "@/constants";
@@ -21,7 +21,6 @@ export const TagsInput: React.FC<TagsInputProps> = ({
   const [newTag, setNewTag] = useState("");
   const [tagError, setTagError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [shouldScrollToEnd, setShouldScrollToEnd] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate unique IDs to prevent conflicts when multiple instances exist
@@ -31,25 +30,25 @@ export const TagsInput: React.FC<TagsInputProps> = ({
   const helpId = `tags-help-${baseId}`;
 
   // Reusable scroll function
-  const scrollToContainer = useCallback((block: ScrollLogicalPosition = 'nearest') => {
-    if (containerRef.current) {
-      const scrollableParent = containerRef.current.closest('.overflow-y-auto');
-      if (scrollableParent) {
-        containerRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block,
-        });
+  const scrollToContainer = useCallback(
+    (block: ScrollLogicalPosition = "nearest") => {
+      if (containerRef.current) {
+        const scrollableParent =
+          containerRef.current.closest(".overflow-y-auto");
+        if (scrollableParent) {
+          containerRef.current.scrollIntoView({
+            behavior: "smooth",
+            block,
+          });
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
-  // Scroll after tags array is updated
-  useEffect(() => {
-    if (shouldScrollToEnd) {
-      scrollToContainer('end');
-      setShouldScrollToEnd(false);
-    }
-  }, [tags, shouldScrollToEnd, scrollToContainer]);
+  const scrollToEndAfterRender = useCallback(() => {
+    requestAnimationFrame(() => scrollToContainer("end"));
+  }, [scrollToContainer]);
 
   const handleAddTag = useCallback(() => {
     const tag = newTag.trim();
@@ -68,10 +67,10 @@ export const TagsInput: React.FC<TagsInputProps> = ({
     if (!tags.includes(tag)) {
       onTagsChange([...tags, tag]);
       setTagError("");
-      setShouldScrollToEnd(true);
+      scrollToEndAfterRender();
       setNewTag("");
     }
-  }, [newTag, tags, onTagsChange]);
+  }, [newTag, tags, onTagsChange, scrollToEndAfterRender]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove: string) => {
@@ -90,10 +89,10 @@ export const TagsInput: React.FC<TagsInputProps> = ({
         onTagsChange([...tags, tagToAdd]);
         setNewTag("");
         setTagError("");
-        setShouldScrollToEnd(true);
+        scrollToEndAfterRender();
       }
     },
-    [tags, onTagsChange]
+    [tags, onTagsChange, scrollToEndAfterRender]
   );
 
   const handleKeyPress = useCallback(
@@ -132,7 +131,7 @@ export const TagsInput: React.FC<TagsInputProps> = ({
     if (newTag.trim().length > 0) {
       setShowSuggestions(true);
     }
-    scrollToContainer('nearest');
+    scrollToContainer("nearest");
   }, [newTag, scrollToContainer]);
 
   const handleInputBlur = useCallback(() => {
@@ -295,7 +294,10 @@ export const TagsInput: React.FC<TagsInputProps> = ({
       )}
 
       {displayError && (
-        <p id={errorId} className="text-sm text-error-foreground flex items-center">
+        <p
+          id={errorId}
+          className="text-sm text-error-foreground flex items-center"
+        >
           <AlertCircle className="w-4 h-4 mr-1" />
           {displayError}
         </p>

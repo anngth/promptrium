@@ -1,8 +1,14 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { usePrompts } from "@/contexts/PromptContext";
 import { useToast } from "@/components/ui/use-toast";
-import { getAllTags } from "@/utils/helpers";
+import { getAllTags, parseImportPreview } from "@/utils/helpers";
 import { Prompt, ModalType, PromptFormData, SortKey } from "@/types";
+
+export interface ImportPreview {
+  file: File;
+  promptCount: number;
+  fileName: string;
+}
 
 export const usePageLogic = () => {
   const {
@@ -15,6 +21,8 @@ export const usePageLogic = () => {
     incrementUsage,
     exportData,
     importData,
+    isLoading,
+    mounted,
     // Filter state
     searchQuery,
     selectedTags,
@@ -31,18 +39,14 @@ export const usePageLogic = () => {
   // Local state
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
-  const [mounted, setMounted] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(
+    null
+  );
 
   // Get available tags
   const availableTags = useMemo(() => {
-    if (!mounted) return [];
     return getAllTags(prompts);
-  }, [prompts, mounted]);
-
-  // Set mounted state after component mounts to prevent hydration issues
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  }, [prompts]);
 
   // Handle search and filter changes
   const handleSearchChange = useCallback(
@@ -66,25 +70,48 @@ export const usePageLogic = () => {
     [setSortOptions]
   );
 
-  // Import handler
+  const closeModal = useCallback(() => {
+    setModalType(null);
+    setSelectedPrompt(null);
+    setImportPreview(null);
+  }, []);
+
+  // Import handler — validate file and show confirmation dialog
   const handleImport = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (file) {
-        try {
-          await importData(file);
-        } catch {
-          toast({
-            title: "Import failed",
-            description: "Failed to import data. Please check the file format.",
-          });
-        }
-      }
-      // Reset file input
       event.target.value = "";
+      if (!file) return;
+
+      try {
+        const preview = await parseImportPreview(file);
+        setImportPreview({
+          file,
+          promptCount: preview.promptCount,
+          fileName: file.name,
+        });
+        setModalType("import");
+      } catch {
+        toast({
+          title: "Import failed",
+          description:
+            "Invalid file. Please select a valid Promptrium JSON export.",
+          variant: "destructive",
+        });
+      }
     },
-    [importData, toast]
+    [toast]
   );
+
+  const handleConfirmImport = useCallback(async () => {
+    if (!importPreview) return;
+    await importData(importPreview.file);
+    closeModal();
+  }, [importPreview, importData, closeModal]);
+
+  const handleExportBackup = useCallback(() => {
+    exportData();
+  }, [exportData]);
 
   // Modal handlers
   const openCreateModal = useCallback(() => {
@@ -100,11 +127,6 @@ export const usePageLogic = () => {
   const openDeleteModal = useCallback((prompt: Prompt) => {
     setSelectedPrompt(prompt);
     setModalType("delete");
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalType(null);
-    setSelectedPrompt(null);
   }, []);
 
   // Prompt handlers
@@ -151,6 +173,8 @@ export const usePageLogic = () => {
     // State
     selectedPrompt,
     modalType,
+    importPreview,
+    isImporting: isLoading,
     searchQuery,
     selectedTags,
     sortBy,
@@ -161,6 +185,8 @@ export const usePageLogic = () => {
     handleTagsChange,
     handleSortChange,
     handleImport,
+    handleConfirmImport,
+    handleExportBackup,
     openCreateModal,
     openEditModal,
     openDeleteModal,

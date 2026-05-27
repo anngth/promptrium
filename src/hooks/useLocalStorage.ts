@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 type SetValue<T> = (value: T | ((prevValue: T) => T)) => void;
 
 // Helper function to detect plain objects
-function isPlainObject(value: any): value is Record<string, any> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -15,10 +15,14 @@ function isPlainObject(value: any): value is Record<string, any> {
 export function useLocalStorage<T>(
   key: string,
   initialValue: T
-): [T, SetValue<T>] {
+): [T, SetValue<T>, boolean] {
   const [storedValue, setStoredValue] = useState<T>(initialValue);
   const [mounted, setMounted] = useState(false);
   const initialValueRef = useRef(initialValue);
+  // Keep a ref to the latest in-memory value so functional updaters
+  // (value => newValue) can read current state synchronously without
+  // depending on the React state cycle.
+  const storedValueRef = useRef<T>(initialValue);
 
   // Update ref when key or initialValue changes
   useEffect(() => {
@@ -31,13 +35,15 @@ export function useLocalStorage<T>(
       const item = window.localStorage.getItem(key);
       if (item) {
         const parsed = JSON.parse(item);
+        let resolved: T;
         // Only merge if both parsed and initialValue are plain objects
         if (isPlainObject(parsed) && isPlainObject(initialValueRef.current)) {
-          setStoredValue({ ...initialValueRef.current, ...parsed });
+          resolved = { ...initialValueRef.current, ...parsed } as T;
         } else {
-          // Use parsed value directly for non-objects or when initialValue isn't an object
-          setStoredValue(parsed);
+          resolved = parsed as T;
         }
+        storedValueRef.current = resolved;
+        setStoredValue(resolved);
       }
     } catch (error) {
       console.error(`Error reading localStorage key "${key}":`, error);
@@ -47,19 +53,32 @@ export function useLocalStorage<T>(
     }
   }, [key]);
 
-  const setValue: SetValue<T> = (value) => {
-    try {
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
+  const setValue: SetValue<T> = useCallback(
+    (value) => {
+      // Resolve the next value synchronously using the ref so functional
+      // updaters get the real current value, not a stale closure.
+      const nextValue =
+        value instanceof Function ? value(storedValueRef.current) : value;
+
+      // Persist to localStorage BEFORE updating React state.
+      // This way, if setItem throws (e.g. QuotaExceededError) the error
+      // propagates to the caller and React state is never updated — so the
+      // in-memory state stays consistent with what is actually on disk.
       if (mounted && typeof window !== "undefined") {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        // Throws DOMException (QuotaExceededError) when storage is full.
+        // Intentionally not caught here — callers are responsible for
+        // handling the error and deciding whether to show a toast / rollback.
+        window.localStorage.setItem(key, JSON.stringify(nextValue));
       }
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  };
+
+      storedValueRef.current = nextValue;
+      setStoredValue(nextValue);
+    },
+    [key, mounted]
+  );
 
   // Return initialValue until mounted to prevent hydration mismatch
-  return [mounted ? storedValue : initialValue, setValue];
+  return [mounted ? storedValue : initialValue, setValue, mounted];
 }
+
+export type UseLocalStorageReturn<T> = [T, SetValue<T>, boolean];

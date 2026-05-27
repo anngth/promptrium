@@ -39,23 +39,21 @@ const PromptForm = forwardRef<PromptFormRef, ExtendedPromptFormProps>(
       validateForm,
       setError,
       isFormValid,
-    } = usePromptForm();
+    } = usePromptForm(
+      prompt
+        ? {
+            title: prompt.title,
+            content: prompt.content,
+            description: prompt.description,
+            tags: [...prompt.tags],
+          }
+        : undefined
+    );
 
     // Calculate available tags from all prompts
     const availableTags = useMemo(() => {
       return getAllTags(prompts);
     }, [prompts]);
-
-    useEffect(() => {
-      if (prompt) {
-        setFormData({
-          title: prompt.title,
-          content: prompt.content,
-          description: prompt.description,
-          tags: [...prompt.tags],
-        });
-      }
-    }, [prompt, setFormData]);
 
     const handleTagsChange = (tags: string[]) => {
       setFormData((prev) => ({ ...prev, tags }));
@@ -113,6 +111,16 @@ const PromptForm = forwardRef<PromptFormRef, ExtendedPromptFormProps>(
         className="px-3 sm:px-6 pt-3 pb-4 sm:pt-4 sm:pb-6 space-y-3"
         noValidate
       >
+        {/* Security notice — prompts are stored unencrypted in localStorage */}
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-xs leading-relaxed">
+            Prompts are saved in your browser&apos;s local storage in plain
+            text.{" "}
+            <strong>Do not store API keys, passwords, or other secrets</strong>{" "}
+            in prompt content.
+          </p>
+        </div>
         <TitleField
           value={formData.title}
           onChange={(value) => handleInputChange("title", value)}

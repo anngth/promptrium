@@ -12,6 +12,7 @@ export const VALIDATION = {
   },
   CONTENT: {
     MIN_LENGTH: 10,
+    MAX_LENGTH: 20000,
   },
   DESCRIPTION: {
     MAX_LENGTH: 200,
@@ -20,6 +21,12 @@ export const VALIDATION = {
     MAX_COUNT: 10,
     MAX_LENGTH: 20,
   },
+} as const;
+
+export const DATA_LIMITS = {
+  IMPORT_MAX_FILE_SIZE_BYTES: 1024 * 1024,
+  MAX_PROMPTS: 1000,
+  ID_MAX_LENGTH: 100,
 } as const;
 
 // UI constants
@@ -72,6 +79,7 @@ export const ERROR_MESSAGES = {
     TITLE_TOO_LONG: `Title must be less than ${VALIDATION.TITLE.MAX_LENGTH} characters`,
     CONTENT_REQUIRED: "Content is required",
     CONTENT_TOO_SHORT: `Content must be at least ${VALIDATION.CONTENT.MIN_LENGTH} characters`,
+    CONTENT_TOO_LONG: `Content must be less than ${VALIDATION.CONTENT.MAX_LENGTH} characters`,
     DESCRIPTION_TOO_LONG: `Description must be less than ${VALIDATION.DESCRIPTION.MAX_LENGTH} characters`,
     TAGS_TOO_LONG: `Tag must be less than ${VALIDATION.TAGS.MAX_LENGTH} characters`,
     TAGS_TOO_MANY: `Maximum ${VALIDATION.TAGS.MAX_COUNT} tags allowed`,

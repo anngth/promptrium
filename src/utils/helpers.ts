@@ -1,5 +1,10 @@
-import { Prompt } from "@/types";
-import { VALIDATION, ERROR_MESSAGES } from "@/constants";
+import { Prompt, Settings } from "@/types";
+import {
+  VALIDATION,
+  ERROR_MESSAGES,
+  DATA_LIMITS,
+  DEFAULT_SETTINGS,
+} from "@/constants";
 
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -9,11 +14,117 @@ export const cn = (...inputs: ClassValue[]) => {
 };
 
 export const generateId = (): string => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+};
+
+export const getDefaultSettings = (): Settings => ({
+  theme: DEFAULT_SETTINGS.THEME,
+  view_mode: DEFAULT_SETTINGS.VIEW_MODE,
+  layout_density: DEFAULT_SETTINGS.LAYOUT_DENSITY,
+  last_backup: 0,
+});
+
+export const validateSettingsPartial = (
+  importedSettings: unknown
+): Partial<Settings> => {
+  const validSettings: Partial<Settings> = {};
+
+  if (
+    !importedSettings ||
+    typeof importedSettings !== "object" ||
+    Array.isArray(importedSettings)
+  ) {
+    return validSettings;
+  }
+
+  const settingsRecord = importedSettings as Record<string, unknown>;
+
+  if (settingsRecord.theme === "light" || settingsRecord.theme === "dark") {
+    validSettings.theme = settingsRecord.theme;
+  }
+
+  if (
+    settingsRecord.view_mode === "grid" ||
+    settingsRecord.view_mode === "list"
+  ) {
+    validSettings.view_mode = settingsRecord.view_mode;
+  }
+
+  if (
+    settingsRecord.layout_density === "compact" ||
+    settingsRecord.layout_density === "comfortable" ||
+    settingsRecord.layout_density === "expanded"
+  ) {
+    validSettings.layout_density = settingsRecord.layout_density;
+  }
+
+  if (
+    typeof settingsRecord.last_backup === "number" &&
+    Number.isFinite(settingsRecord.last_backup) &&
+    settingsRecord.last_backup >= 0
+  ) {
+    validSettings.last_backup = settingsRecord.last_backup;
+  }
+
+  return validSettings;
+};
+
+export const sanitizeSettings = (value: unknown): Settings => {
+  return { ...getDefaultSettings(), ...validateSettingsPartial(value) };
+};
+
+export const isValidJsonImportFile = (file: File): boolean => {
+  const isJsonExtension = file.name.toLowerCase().endsWith(".json");
+  const isJsonMime =
+    file.type === "application/json" || file.type === "text/json";
+  const isEmptyMime = file.type === "";
+
+  return isJsonExtension && (isJsonMime || isEmptyMime);
+};
+
+export async function parseImportPreview(
+  file: File
+): Promise<{ promptCount: number }> {
+  if (!isValidJsonImportFile(file)) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  if (
+    file.size === 0 ||
+    file.size > DATA_LIMITS.IMPORT_MAX_FILE_SIZE_BYTES
+  ) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  const text = await file.text();
+  const data: unknown = JSON.parse(text);
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  const dataRecord = data as Record<string, unknown>;
+  if (!Array.isArray(dataRecord.prompts)) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  if (dataRecord.prompts.length > DATA_LIMITS.MAX_PROMPTS) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  const sanitized = sanitizePrompts(dataRecord.prompts);
+  if (sanitized.length !== dataRecord.prompts.length) {
+    throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
+  }
+
+  return { promptCount: sanitized.length };
 };
 
 export const formatDate = (timestamp: number): string => {
@@ -33,6 +144,98 @@ export const truncateText = (text: string, maxLength: number): string => {
   return text.substring(0, maxLength).trim() + "...";
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
+};
+
+const sanitizeString = (value: unknown, maxLength: number): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) return null;
+  return trimmed;
+};
+
+const sanitizeTimestamp = (value: unknown): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return value;
+};
+
+export const sanitizePrompt = (value: unknown): Prompt | null => {
+  if (!isRecord(value)) return null;
+
+  const id = sanitizeString(value.id, DATA_LIMITS.ID_MAX_LENGTH);
+  const title = sanitizeString(value.title, VALIDATION.TITLE.MAX_LENGTH);
+  const content = sanitizeString(value.content, VALIDATION.CONTENT.MAX_LENGTH);
+  const description = sanitizeString(
+    value.description ?? "",
+    VALIDATION.DESCRIPTION.MAX_LENGTH
+  );
+  const createdAt = sanitizeTimestamp(value.created_at);
+  const updatedAt = sanitizeTimestamp(value.updated_at);
+
+  if (!id || !title || !content || description === null) return null;
+  if (createdAt === null || updatedAt === null) return null;
+  if (title.length < VALIDATION.TITLE.MIN_LENGTH) return null;
+  if (content.length < VALIDATION.CONTENT.MIN_LENGTH) return null;
+
+  if (!Array.isArray(value.tags)) return null;
+
+  const tags = deduplicateTags(
+    value.tags.filter((tag): tag is string => typeof tag === "string")
+  );
+
+  if (
+    tags.length !== value.tags.length ||
+    tags.length > VALIDATION.TAGS.MAX_COUNT ||
+    tags.some((tag) => tag.length > VALIDATION.TAGS.MAX_LENGTH)
+  ) {
+    return null;
+  }
+
+  const usageCount =
+    typeof value.usage_count === "number" &&
+    Number.isFinite(value.usage_count) &&
+    value.usage_count >= 0
+      ? Math.floor(value.usage_count)
+      : 0;
+
+  return {
+    id,
+    title,
+    content,
+    description,
+    tags,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    usage_count: usageCount,
+    is_favorite: value.is_favorite === true,
+  };
+};
+
+export const sanitizePrompts = (value: unknown): Prompt[] => {
+  if (!Array.isArray(value)) return [];
+
+  const prompts: Prompt[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of value) {
+    const prompt = sanitizePrompt(item);
+    if (!prompt || seenIds.has(prompt.id)) continue;
+
+    seenIds.add(prompt.id);
+    prompts.push(prompt);
+  }
+
+  return prompts;
+};
+
 export const searchPrompts = (prompts: Prompt[], query: string): Prompt[] => {
   // Ensure prompts is an array before filtering
   if (!Array.isArray(prompts)) {
@@ -40,15 +243,15 @@ export const searchPrompts = (prompts: Prompt[], query: string): Prompt[] => {
   }
 
   if (!query.trim()) return prompts;
-  const searchTerm = query.toLowerCase();
-  return prompts.filter(
-    (prompt) =>
+  const searchTerm = query.trim().toLowerCase();
+  return prompts.filter((prompt) => {
+    return (
       prompt.title.toLowerCase().includes(searchTerm) ||
       prompt.content.toLowerCase().includes(searchTerm) ||
       prompt.description.toLowerCase().includes(searchTerm) ||
-      (Array.isArray(prompt.tags) &&
-        prompt.tags.some((tag) => tag.toLowerCase().includes(searchTerm)))
-  );
+      prompt.tags.some((tag) => tag.toLowerCase().includes(searchTerm))
+    );
+  });
 };
 
 export const getAllTags = (prompts: Prompt[]): string[] => {
@@ -89,6 +292,8 @@ export const validatePrompt = (
     errors.push(ERROR_MESSAGES.VALIDATION.CONTENT_REQUIRED);
   } else if (content.length < VALIDATION.CONTENT.MIN_LENGTH) {
     errors.push(ERROR_MESSAGES.VALIDATION.CONTENT_TOO_SHORT);
+  } else if (content.length > VALIDATION.CONTENT.MAX_LENGTH) {
+    errors.push(ERROR_MESSAGES.VALIDATION.CONTENT_TOO_LONG);
   }
 
   // Normalize and validate description

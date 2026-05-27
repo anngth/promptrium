@@ -41,6 +41,7 @@ export interface PromptContextType {
   filteredPrompts: Prompt[];
   selectedPrompt: Prompt | null;
   isLoading: boolean;
+  mounted: boolean;
 
   // Filter state
   searchQuery: string;

@@ -3,13 +3,23 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Prompt, PromptFormData } from "@/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { validatePrompt, deduplicateTags } from "@/utils/helpers";
+import {
+  validatePrompt,
+  deduplicateTags,
+  sanitizePrompts,
+} from "@/utils/helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
-import { STORAGE_KEYS, SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/constants";
+import {
+  STORAGE_KEYS,
+  SUCCESS_MESSAGES,
+  ERROR_MESSAGES,
+  DATA_LIMITS,
+} from "@/constants";
 
 interface PromptDataContextType {
   prompts: Prompt[];
+  mounted: boolean;
   addPrompt: (promptData: PromptFormData) => void;
   updatePrompt: (id: string, promptData: PromptFormData) => void;
   deletePrompt: (id: string) => void;
@@ -30,17 +40,60 @@ export const usePromptData = () => {
   return context;
 };
 
+export function isQuotaError(err: unknown): boolean {
+  return (
+    err instanceof DOMException &&
+    (err.name === "QuotaExceededError" ||
+      err.name === "NS_ERROR_DOM_QUOTA_REACHED")
+  );
+}
+
+export function storageErrorMessage(err: unknown): string {
+  return isQuotaError(err)
+    ? "Your browser storage is full. Export your data to free up space, then try again."
+    : "Failed to save data. Please try again.";
+}
+
 export const PromptDataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { success, error } = useToast();
-  const [prompts, setPrompts] = useLocalStorage<Prompt[]>(
+  const [storedPrompts, setStoredPrompts, mounted] = useLocalStorage<Prompt[]>(
     STORAGE_KEYS.PROMPTS,
     []
   );
+  const prompts = useMemo(
+    () => sanitizePrompts(storedPrompts),
+    [storedPrompts]
+  );
+
+  // setPrompts: compute next state, persist, then update React state.
+  // Throws on storage failure — callers are responsible for catching and
+  // deciding what toast to show. No toast is emitted here so bulk operations
+  // (import, clear) can show a single, context-appropriate message.
+  const setPrompts: React.Dispatch<React.SetStateAction<Prompt[]>> =
+    useCallback(
+      (value) => {
+        setStoredPrompts((prev) => {
+          const currentPrompts = sanitizePrompts(prev);
+          const nextPrompts =
+            value instanceof Function ? value(currentPrompts) : value;
+          return sanitizePrompts(nextPrompts);
+        });
+      },
+      [setStoredPrompts]
+    );
 
   const addPrompt = useCallback(
     (promptData: PromptFormData) => {
+      if (prompts.length >= DATA_LIMITS.MAX_PROMPTS) {
+        error(
+          ERROR_MESSAGES.OPERATIONS.VALIDATION_FAILED,
+          `Maximum ${DATA_LIMITS.MAX_PROMPTS} prompts allowed`
+        );
+        return;
+      }
+
       const validation = validatePrompt(promptData);
       if (!validation.isValid) {
         error(
@@ -62,10 +115,15 @@ export const PromptDataProvider: React.FC<{ children: React.ReactNode }> = ({
         is_favorite: false,
       };
 
-      setPrompts((prev) => [...prev, newPrompt]);
-      success(SUCCESS_MESSAGES.PROMPT_CREATED);
+      try {
+        setPrompts((prev) => [...prev, newPrompt]);
+        success(SUCCESS_MESSAGES.PROMPT_CREATED);
+      } catch (err) {
+        console.error("Error writing localStorage:", err);
+        error("Storage full", storageErrorMessage(err));
+      }
     },
-    [setPrompts, success, error]
+    [prompts.length, setPrompts, success, error]
   );
 
   const updatePrompt = useCallback(
@@ -79,68 +137,82 @@ export const PromptDataProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      setPrompts((prev) =>
-        prev.map((prompt) =>
-          prompt.id === id
-            ? {
-                ...prompt,
-                title: promptData.title.trim(),
-                content: promptData.content.trim(),
-                tags: deduplicateTags(promptData.tags),
-                updated_at: Date.now(),
-              }
-            : prompt
-        )
-      );
-
-      success(SUCCESS_MESSAGES.PROMPT_UPDATED);
+      try {
+        setPrompts((prev) =>
+          prev.map((prompt) =>
+            prompt.id === id
+              ? {
+                  ...prompt,
+                  title: promptData.title.trim(),
+                  content: promptData.content.trim(),
+                  tags: deduplicateTags(promptData.tags),
+                  updated_at: Date.now(),
+                }
+              : prompt
+          )
+        );
+        success(SUCCESS_MESSAGES.PROMPT_UPDATED);
+      } catch (err) {
+        console.error("Error writing localStorage:", err);
+        error("Storage full", storageErrorMessage(err));
+      }
     },
     [setPrompts, success, error]
   );
 
   const deletePrompt = useCallback(
     (id: string) => {
-      setPrompts((prev) => prev.filter((prompt) => prompt.id !== id));
-      success(SUCCESS_MESSAGES.PROMPT_DELETED);
+      try {
+        setPrompts((prev) => prev.filter((prompt) => prompt.id !== id));
+        success(SUCCESS_MESSAGES.PROMPT_DELETED);
+      } catch (err) {
+        console.error("Error writing localStorage:", err);
+        error("Storage full", storageErrorMessage(err));
+      }
     },
-    [setPrompts, success]
+    [setPrompts, success, error]
   );
 
   const toggleFavorite = useCallback(
     (id: string) => {
-      setPrompts((prev) =>
-        prev.map((prompt) =>
-          prompt.id === id
-            ? {
-                ...prompt,
-                is_favorite: !prompt.is_favorite,
-              }
-            : prompt
-        )
-      );
+      try {
+        setPrompts((prev) =>
+          prev.map((prompt) =>
+            prompt.id === id
+              ? { ...prompt, is_favorite: !prompt.is_favorite }
+              : prompt
+          )
+        );
+      } catch (err) {
+        console.error("Error writing localStorage:", err);
+        error("Storage full", storageErrorMessage(err));
+      }
     },
-    [setPrompts]
+    [setPrompts, error]
   );
 
   const incrementUsage = useCallback(
     (id: string) => {
-      setPrompts((prev) =>
-        prev.map((prompt) =>
-          prompt.id === id
-            ? {
-                ...prompt,
-                usage_count: prompt.usage_count + 1,
-              }
-            : prompt
-        )
-      );
+      try {
+        setPrompts((prev) =>
+          prev.map((prompt) =>
+            prompt.id === id
+              ? { ...prompt, usage_count: prompt.usage_count + 1 }
+              : prompt
+          )
+        );
+      } catch (err) {
+        console.error("Error writing localStorage:", err);
+        error("Storage full", storageErrorMessage(err));
+      }
     },
-    [setPrompts]
+    [setPrompts, error]
   );
 
   const contextValue: PromptDataContextType = useMemo(
     () => ({
       prompts,
+      mounted,
       addPrompt,
       updatePrompt,
       deletePrompt,
@@ -150,6 +222,7 @@ export const PromptDataProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       prompts,
+      mounted,
       addPrompt,
       updatePrompt,
       deletePrompt,
