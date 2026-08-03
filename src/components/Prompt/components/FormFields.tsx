@@ -35,7 +35,10 @@ export const FormField: React.FC<FormFieldProps> = ({
 
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-sm font-medium text-card-foreground">
+      <label
+        htmlFor={id}
+        className="block text-sm font-medium text-card-foreground"
+      >
         {label} {required && "*"}
       </label>
       <InputComponent

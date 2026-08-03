@@ -71,17 +71,14 @@ const HeaderFilters: React.FC<HeaderFiltersProps> = ({
           />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-64"
-      >
+      <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuRadioGroup
           value={sortBy}
           onValueChange={handleDropdownSortChange}
         >
           {sortOptions.map((option) => (
-            <DropdownMenuRadioItem 
-              key={option.key} 
+            <DropdownMenuRadioItem
+              key={option.key}
               value={option.key}
               className="cursor-pointer"
             >

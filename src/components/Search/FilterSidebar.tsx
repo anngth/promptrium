@@ -81,8 +81,12 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Tag className="w-12 h-12 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground font-medium">No tags available</p>
-            <p className="text-xs text-muted-foreground mt-1">Create prompts with tags to see them here</p>
+            <p className="text-sm text-muted-foreground font-medium">
+              No tags available
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Create prompts with tags to see them here
+            </p>
           </div>
         )}
       </div>
