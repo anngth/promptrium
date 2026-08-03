@@ -96,10 +96,7 @@ export async function parseImportPreview(
     throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
   }
 
-  if (
-    file.size === 0 ||
-    file.size > DATA_LIMITS.IMPORT_MAX_FILE_SIZE_BYTES
-  ) {
+  if (file.size === 0 || file.size > DATA_LIMITS.IMPORT_MAX_FILE_SIZE_BYTES) {
     throw new Error(ERROR_MESSAGES.OPERATIONS.INVALID_DATA_FORMAT);
   }
 
@@ -125,7 +122,7 @@ export async function parseImportPreview(
   }
 
   return { promptCount: sanitized.length };
-};
+}
 
 export const formatDate = (timestamp: number): string => {
   const date = new Date(timestamp);

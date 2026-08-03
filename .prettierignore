@@ -57,6 +57,7 @@ Thumbs.db
 # Lock files
 package-lock.json
 yarn.lock
+pnpm-lock.yaml
 
 # Generated files
 *.d.ts.map

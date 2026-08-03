@@ -35,46 +35,48 @@ const ErrorDisplay: React.FC<{
   const showErrorDetails = process.env.NODE_ENV !== "production";
 
   return (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-6 text-center">
-      {/* Error Icon */}
-      <div className="w-16 h-16 bg-error-background rounded-full flex items-center justify-center mx-auto mb-4">
-        <AlertTriangle className="w-8 h-8 text-error-foreground" />
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-6 text-center">
+        {/* Error Icon */}
+        <div className="w-16 h-16 bg-error-background rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-8 h-8 text-error-foreground" />
+        </div>
 
-      {/* Error Title */}
-      <h2 className="text-xl font-semibold text-card-foreground mb-2">
-        {ERROR_MESSAGES.title}
-      </h2>
+        {/* Error Title */}
+        <h2 className="text-xl font-semibold text-card-foreground mb-2">
+          {ERROR_MESSAGES.title}
+        </h2>
 
-      {/* Error Description */}
-      <p className="text-muted-foreground mb-6">{ERROR_MESSAGES.description}</p>
+        {/* Error Description */}
+        <p className="text-muted-foreground mb-6">
+          {ERROR_MESSAGES.description}
+        </p>
 
-      {/* Error Details — hidden in production */}
-      {showErrorDetails && error && (
-        <details className="mb-4 text-left">
-          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-            {ERROR_MESSAGES.errorDetails}
-          </summary>
-          <pre className="mt-2 text-xs text-error-foreground bg-error-background p-2 rounded overflow-auto">
-            {error.message}
-          </pre>
-        </details>
-      )}
+        {/* Error Details — hidden in production */}
+        {showErrorDetails && error && (
+          <details className="mb-4 text-left">
+            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+              {ERROR_MESSAGES.errorDetails}
+            </summary>
+            <pre className="mt-2 text-xs text-error-foreground bg-error-background p-2 rounded overflow-auto">
+              {error.message}
+            </pre>
+          </details>
+        )}
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <Button onClick={onReset} className="w-full" variant="outline">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          {ERROR_MESSAGES.tryAgain}
-        </Button>
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button onClick={onReset} className="w-full" variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {ERROR_MESSAGES.tryAgain}
+          </Button>
 
-        <Button onClick={() => window.location.reload()} className="w-full">
-          {ERROR_MESSAGES.refreshPage}
-        </Button>
+          <Button onClick={() => window.location.reload()} className="w-full">
+            {ERROR_MESSAGES.refreshPage}
+          </Button>
+        </div>
       </div>
     </div>
-  </div>
   );
 };
 

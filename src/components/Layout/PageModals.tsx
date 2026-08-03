@@ -187,7 +187,11 @@ export const PageModals: React.FC<PageModalsProps> = ({
             >
               Export backup first
             </Button>
-            <Button variant="outline" onClick={onCloseModal} disabled={isImporting}>
+            <Button
+              variant="outline"
+              onClick={onCloseModal}
+              disabled={isImporting}
+            >
               Cancel
             </Button>
             <Button onClick={onConfirmImport} disabled={isImporting}>
